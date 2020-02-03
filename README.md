@@ -1,6 +1,6 @@
 # Lambda Treasure Hunt Server
 
-Student facing test server for Lambda Treasure Hunt.
+Student facing test server for Lambda Treasure Hunt..
 
 
 ## 1. Deploy server
