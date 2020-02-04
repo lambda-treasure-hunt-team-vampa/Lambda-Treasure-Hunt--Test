@@ -2,7 +2,7 @@ from decouple import config
 import requests
 import json
 import random
-from time import sleep
+from time import sleep, time
 import os
 
 dirname = os.path.dirname(os.path.abspath(__file__))
@@ -75,17 +75,21 @@ class Traversal_Graph:
 
 
 def get_init_response():
-    init_endpoint = "http://127.0.0.1:8000/api/adv/init/"
-    init_headers = {"Authorization": f"Token {config('TEST_KEY')}"}
+    init_endpoint = "https://lambda-treasure-hunt.herokuapp.com/api/adv/init/"
+    # init_endpoint = "http://127.0.0.1:8000/api/adv/init/"
+    init_headers = {"Authorization": f"Token {config('SECRET_KEY')}"}
+    # init_headers = {"Authorization": f"Token {config('TEST_KEY')}"}
     init_response = json.loads(requests.get(init_endpoint, headers=init_headers).content)
-    # sleep(1)
+    sleep(init_response['cooldown'])
     return init_response
 def make_move(move):
-    move_endpoint = "http://127.0.0.1:8000/api/adv/move/"
-    move_headers = {"Content-Type": "application/json", "Authorization": f"Token {config('TEST_KEY')}"}
+    move_endpoint = "https://lambda-treasure-hunt.herokuapp.com/api/adv/move/"
+    # move_endpoint = "http://127.0.0.1:8000/api/adv/move/"
+    move_headers = {"Content-Type": "application/json", "Authorization": f"Token {config('SECRET_KEY')}"}
+    # move_headers = {"Content-Type": "application/json", "Authorization": f"Token {config('TEST_KEY')}"}
     move_payload = {"direction": move}
     move_response = json.loads(requests.post(move_endpoint, data=json.dumps(move_payload), headers=move_headers).content)
-    # sleep(15)
+    sleep(move_response['cooldown'])
     return move_response
 
 traversal_graph = Traversal_Graph()
@@ -93,6 +97,7 @@ init_response = get_init_response()
 traversal_graph.add_vertex(init_response)
 
 counter = 0
+start_time = time()
 while len(traversal_graph.vertices) < 500:
     init_response = get_init_response()
     exits = init_response['exits']
@@ -105,7 +110,7 @@ while len(traversal_graph.vertices) < 500:
         post_move_room_id = move_response['room_id']
         if post_move_room_id not in traversal_graph.vertices:
             traversal_graph.add_vertex(move_response)
-            print(f"{len(traversal_graph.vertices)} rooms found in {counter} moves")
+            print(f"{len(traversal_graph.vertices)} rooms found in {counter} moves and {time() - start_time} seconds")
             with open(os.path.join(dirname, 'traversal_graph.txt'), 'w') as outfile:
                 json.dump(traversal_graph.vertices, outfile)
         traversal_graph.add_edge(init_response, move_response, move)
