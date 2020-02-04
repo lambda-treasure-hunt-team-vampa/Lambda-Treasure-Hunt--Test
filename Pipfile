@@ -17,9 +17,11 @@ django-rest-api = "*"
 celery = "*"
 dj-database-url = "*"
 "psycopg2-binary" = "*"
+requests = "*"
 
 [dev-packages]
 flake8 = "*"
+autopep8 = "*"
 
 [requires]
 python_version = "3.7"
