@@ -1,11 +1,7 @@
-from room import Room
-from player import Player
-from world import World
-
-import random
-from ast import literal_eval
-
+import requests
 import json
+import random
+from time import sleep
 
 class Queue():
     def __init__(self):
@@ -25,24 +21,24 @@ movement_dict = {'n': 's', 'e': 'w', 's': 'n', 'w': 'e'}
 class Traversal_Graph:
     def __init__(self):
         self.vertices = {}
-    def add_vertex(self, room):
-        self.vertices[room.id] = {exit: '?' for exit in room.get_exits()}
-    def add_edge(self, starting_room, destination_room, move):
-        if (starting_room.id in self.vertices) and (
-            destination_room.id in self.vertices):
-            self.vertices[starting_room.id][move] = destination_room.id
-            self.vertices[destination_room.id][
-                movement_dict[move]] = starting_room.id
+    def add_vertex(self, response):
+        self.vertices[response['room_id']] = {exit: '?' for exit in response['exits']}
+    def add_edge(self, init_response, move_response, move):
+        if (init_response['room_id'] in self.vertices) and (
+            move_response['room_id'] in self.vertices):
+            self.vertices[init_response['room_id']][move] = move_response['room_id']
+            self.vertices[move_response['room_id']][
+                movement_dict[move]] = init_response['room_id']
         else:
             raise IndexError("That room does not exist!")
     def get_neighbors(self, room_id):
         return set(self.vertices[room_id].values())
-    def bfs_to_unexplored(self, starting_room):
+    def bfs_to_unexplored(self, init_response):
         # Create a queue/stack as appropriate
         queue = Queue()
         # Put the starting point in that
         # Enstack a list to use as our path
-        queue.enqueue([starting_room.id])
+        queue.enqueue([init_response['room_id']])
         # Make a set to keep track of where we've been
         visited = set()
         # While there is stuff in the queue/stack
@@ -69,90 +65,41 @@ class Traversal_Graph:
                     new_path.append(next_vert)
                     queue.enqueue(new_path)
 
-# Load world
-world = World()
 
-# You may uncomment the smaller graphs for development and testing purposes.
-# map_file = "maps/test_line.txt"
-# map_file = "maps/test_cross.txt"
-# map_file = "maps/test_loop.txt"
-# map_file = "maps/test_loop_fork.txt"
-map_file = "maps/main_maze.txt"
+def get_init_response():
+    init_endpoint = "http://127.0.0.1:8000/api/adv/init/"
+    init_headers = {"Authorization": "Token b95b972e4e3e23509a22a9d5843ce3c7549e42a0"}
+    init_response = json.loads(requests.get(init_endpoint, headers=init_headers).content)
+    print(init_response)
+    sleep(1)
+    return init_response
+def make_move(move):
+    move_endpoint = "http://127.0.0.1:8000/api/adv/move/"
+    move_headers = {"Content-Type": "application/json", "Authorization": "Token b95b972e4e3e23509a22a9d5843ce3c7549e42a0"}
+    move_payload = {"direction": move}
+    move_response = json.loads(requests.post(move_endpoint, data=json.dumps(move_payload), headers=move_headers).content)
+    print(move_response)
+    sleep(15)
+    return move_response
 
-# Loads the map into a dictionary
-room_graph=literal_eval(open(map_file, "r").read())
-world.load_graph(room_graph)
+traversal_graph = Traversal_Graph()
+while len(traversal_graph.vertices) < 500:
+    init_response = get_init_response()
+    traversal_graph.add_vertex(init_response)
+    print(traversal_graph.vertices)
 
-# Print an ASCII map
-world.print_rooms()
-
-# best_score = 956
-# while best_score > 0:
-# best_score = 1000
-# while best_score > 985:
-#     player = Player(world.starting_room)
-
-#     # Fill this out with directions to walk
-#     # traversal_path = ['n', 'n']
-#     traversal_path = []
-
-#     traversal_graph = Traversal_Graph()
-#     traversal_graph.add_vertex(player.current_room)
-
-#     while len(traversal_graph.vertices) < 500:
-#         pre_move_room = player.current_room
-#         exits = pre_move_room.get_exits()
-#         unexplored = [option for option in exits if (
-#             traversal_graph.vertices[pre_move_room.id][option] == '?')]
-#         if len(unexplored) > 0:
-#             move = random.choice(unexplored)
-#             player.travel(move)
-#             traversal_path.append(move)
-#             post_move_room = player.current_room
-#             if post_move_room.id not in traversal_graph.vertices:
-#                 traversal_graph.add_vertex(post_move_room)
-#             traversal_graph.add_edge(pre_move_room, post_move_room, move)
-#         else:
-#             to_unexplored = traversal_graph.bfs_to_unexplored(player.current_room)
-#             for move in to_unexplored:
-#                 player.travel(move)
-#                 traversal_path.append(move)
-
-#     if len(traversal_path) < best_score:
-#         best_score = len(traversal_path)
-        # with open(f'traversal_in_{len(traversal_path)}_moves.txt', 'w') as file:
-        #     json.dump(traversal_path, file)
-
-with open(f'traversal_in_956_moves.txt') as file:
-    traversal_path = json.load(file)
-player = Player(world.starting_room)
-
-# TRAVERSAL TEST
-visited_rooms = set()
-player.current_room = world.starting_room
-visited_rooms.add(player.current_room)
-
-for move in traversal_path:
-    player.travel(move)
-    visited_rooms.add(player.current_room)
-
-if len(visited_rooms) == len(room_graph):
-    print(f"TESTS PASSED: {len(traversal_path)} moves, {len(visited_rooms)} rooms visited")
-else:
-    print("TESTS FAILED: INCOMPLETE TRAVERSAL")
-    print(f"{len(room_graph) - len(visited_rooms)} unvisited rooms")
-
-
-
-#######
-# UNCOMMENT TO WALK AROUND
-#######
-# player.current_room.print_room_description(player)
-# while True:
-#     cmds = input("-> ").lower().split(" ")
-#     if cmds[0] in ["n", "s", "e", "w"]:
-#         player.travel(cmds[0], True)
-#     elif cmds[0] == "q":
-#         break
-#     else:
-#         print("I did not understand that command.")
+    exits = init_response['exits']
+    unexplored = [option for option in exits if (
+        traversal_graph.vertices[init_response['room_id']][option] == '?')]
+    if len(unexplored) > 0:
+        move = random.choice(unexplored)
+        move_response = make_move(move)
+        post_move_room_id = move_response['room_id']
+        if post_move_room_id not in traversal_graph.vertices:
+            traversal_graph.add_vertex(move_response)
+            traversal_graph.add_edge(init_response, move_response, move)
+            print(traversal_graph.vertices)
+    else:
+        to_unexplored = traversal_graph.bfs_to_unexplored(init_response)
+        for move in to_unexplored:
+            make_move(move)
