@@ -106,7 +106,6 @@ while len(traversal_graph.vertices) < 500:
         if post_move_room_id not in traversal_graph.vertices:
             traversal_graph.add_vertex(move_response)
             print(f"{len(traversal_graph.vertices)} rooms found in {counter} moves")
-            print(traversal_graph.vertices[move_response['room_id']])
             with open(os.path.join(dirname, 'traversal_graph.txt'), 'w') as outfile:
                 json.dump(traversal_graph.vertices, outfile)
         traversal_graph.add_edge(init_response, move_response, move)
@@ -116,7 +115,5 @@ while len(traversal_graph.vertices) < 500:
             make_move(move)
             counter += 1
 
-with open(os.path.join(dirname, 'traversal_graph.txt')) as json_file:
-    traversal_graph_data = json.load(json_file)
-
-print(f"traversal_graph.txt contains {len(traversal_graph_data)} rooms.")
+with open(os.path.join(dirname, 'traversal_graph_complete.txt'), 'w') as outfile:
+    json.dump(traversal_graph.vertices, outfile)
