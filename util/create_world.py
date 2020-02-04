@@ -4,7 +4,7 @@ import random
 
 Group.objects.all().delete()
 
-g = Group(name="test", cooldown=15)
+g = Group(name="test", cooldown=0)
 g.vision_enabled = True
 g.save()
 
