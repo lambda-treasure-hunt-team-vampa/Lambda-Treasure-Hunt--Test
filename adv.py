@@ -1,3 +1,4 @@
+from decouple import config
 import requests
 import json
 import random
@@ -68,25 +69,23 @@ class Traversal_Graph:
 
 def get_init_response():
     init_endpoint = "http://127.0.0.1:8000/api/adv/init/"
-    init_headers = {"Authorization": "Token b95b972e4e3e23509a22a9d5843ce3c7549e42a0"}
+    init_headers = {"Authorization": f"Token {config('TEST_KEY')}"}
     init_response = json.loads(requests.get(init_endpoint, headers=init_headers).content)
-    print(init_response)
-    sleep(1)
+    # sleep(1)
     return init_response
 def make_move(move):
     move_endpoint = "http://127.0.0.1:8000/api/adv/move/"
-    move_headers = {"Content-Type": "application/json", "Authorization": "Token b95b972e4e3e23509a22a9d5843ce3c7549e42a0"}
+    move_headers = {"Content-Type": "application/json", "Authorization": f"Token {config('TEST_KEY')}"}
     move_payload = {"direction": move}
     move_response = json.loads(requests.post(move_endpoint, data=json.dumps(move_payload), headers=move_headers).content)
-    print(move_response)
-    sleep(15)
+    # sleep(15)
     return move_response
 
+counter = 0
 traversal_graph = Traversal_Graph()
 while len(traversal_graph.vertices) < 500:
     init_response = get_init_response()
     traversal_graph.add_vertex(init_response)
-    print(traversal_graph.vertices)
 
     exits = init_response['exits']
     unexplored = [option for option in exits if (
@@ -94,12 +93,14 @@ while len(traversal_graph.vertices) < 500:
     if len(unexplored) > 0:
         move = random.choice(unexplored)
         move_response = make_move(move)
+        counter += 1
         post_move_room_id = move_response['room_id']
         if post_move_room_id not in traversal_graph.vertices:
             traversal_graph.add_vertex(move_response)
             traversal_graph.add_edge(init_response, move_response, move)
-            print(traversal_graph.vertices)
+            print(f"{len(traversal_graph.vertices)} rooms found in {counter} moves")
     else:
         to_unexplored = traversal_graph.bfs_to_unexplored(init_response)
         for move in to_unexplored:
             make_move(move)
+            counter += 1
