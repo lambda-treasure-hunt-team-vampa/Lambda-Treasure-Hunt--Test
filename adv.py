@@ -68,14 +68,14 @@ class Traversal_Graph:
 
 def get_init_response():
     init_endpoint = "http://127.0.0.1:8000/api/adv/init/"
-    init_headers = {"Authorization": "Token b95b972e4e3e23509a22a9d5843ce3c7549e42a0"}
+    init_headers = {"Authorization": "Token 998d806012864c8c15af5d38e5e1cfd2df1199f0"}
     init_response = json.loads(requests.get(init_endpoint, headers=init_headers).content)
     print(init_response)
     sleep(1)
     return init_response
 def make_move(move):
     move_endpoint = "http://127.0.0.1:8000/api/adv/move/"
-    move_headers = {"Content-Type": "application/json", "Authorization": "Token b95b972e4e3e23509a22a9d5843ce3c7549e42a0"}
+    move_headers = {"Content-Type": "application/json", "Authorization": "Token 998d806012864c8c15af5d38e5e1cfd2df1199f0"}
     move_payload = {"direction": move}
     move_response = json.loads(requests.post(move_endpoint, data=json.dumps(move_payload), headers=move_headers).content)
     print(move_response)
