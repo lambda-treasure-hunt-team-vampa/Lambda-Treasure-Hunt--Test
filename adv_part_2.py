@@ -147,6 +147,17 @@ def check_status():
     sleep(status_response['cooldown'])
     return status_response
 
+def change_name(name):
+    change_name_endpoint = "https://lambda-treasure-hunt.herokuapp.com/api/adv/change_name/"
+    # change_name_endpoint = "http://127.0.0.1:8000/api/adv/change_name/"
+    change_name_headers = {"Content-Type": "application/json", "Authorization": f"Token {config('SECRET_KEY')}"}
+    # change_name_headers = {"Content-Type": "application/json", "Authorization": f"Token {config('TEST_KEY')}"}
+    change_name_payload = {"name": name, "confirm": "aye"}
+    change_name_response = json.loads(requests.post(change_name_endpoint, data=json.dumps(change_name_payload), headers=change_name_headers).content)
+    sleep(change_name_response['cooldown'])
+    return change_name_response
+
+
 traversal_graph = Traversal_Graph_Complete()
 with open(os.path.join(dirname, 'traversal_graph_complete.txt')) as json_file:
     traversal_graph.vertices = json.load(json_file)
@@ -211,3 +222,13 @@ while gold < 1000:
                 print(f'CHECK STATUS RESPONSE: {check_status_response}')
                 gold = check_status_response['gold']
                 encumbrance = check_status_response['encumbrance']
+to_name_changer = traversal_graph.bfs(init_response, 'title', "Pirate Ry's")
+for move in to_name_changer:
+    make_wise_move(move, init_response, traversal_graph)
+    counter += 1
+    print(f'{counter} moves made in {time() - start_time} seconds.')
+    init_response = get_init_response()
+    traversal_graph.vertices[init_response['room_id']]['items'] = init_response['items']
+if init_response['title'] == "Pirate Ry's":
+    change_name_response = change_name('nrvanwyck')
+    print(f"CHANGE NAME RESPONSE: {change_name_response}")
