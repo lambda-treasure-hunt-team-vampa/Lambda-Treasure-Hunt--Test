@@ -6,6 +6,7 @@ from time import sleep, time
 import os
 
 dirname = os.path.dirname(os.path.abspath(__file__))
+movement_dict = {'n': 's', 'e': 'w', 's': 'n', 'w': 'e'}
 
 
 class Queue():
@@ -158,28 +159,30 @@ for vertex in traversal_graph.vertices:
 
 check_status_response = check_status()
 encumbrance = check_status_response['encumbrance']
-print('ENCUMBRANCE:', encumbrance)
+print(f'CHECK STATUS RESPONSE: {check_status_response}')
 
 counter = 0
 start_time = time()
 init_response = get_init_response()
 while encumbrance < 7:
     available_moves = list(traversal_graph.vertices[init_response['room_id']]['exits'].keys())
+    # We don't want to move to the room we came from unless we have to, so...
+    if len(available_moves) > 1:
+        available_moves = [move for move in available_moves if move != movement_dict[move]]
     move = random.choice(available_moves)
     make_wise_move(move, init_response, traversal_graph)
     counter += 1
     print(f'{counter} moves made in {time() - start_time} seconds.')
+    last_move = move
     init_response = get_init_response()
     for item in init_response['items']:
         if 'treasure' in item:
             examine_response = examine_item(item)
             print(f'EXAMINE RESPONSE: {examine_response}')
             take_item_response = take_item(item)
-            print(f'TAKE ITEM RESPONSE: {take_item_response}')
             check_status_response = check_status()
             print(f'CHECK STATUS RESPONSE: {check_status_response}')
             encumbrance = check_status_response['encumbrance']
-            print('ENCUMBRANCE:', encumbrance)
 
 # counter = 0
 # start_time = time()
