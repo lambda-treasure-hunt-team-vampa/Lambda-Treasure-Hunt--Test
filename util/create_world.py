@@ -4,7 +4,8 @@ import random
 
 Group.objects.all().delete()
 
-g = Group(name="test", cooldown=15)
+g = Group(name="test", cooldown=0)
+# g = Group(name="test", cooldown=15)
 g.vision_enabled = True
 g.save()
 
@@ -139,6 +140,3 @@ start.save()
 shop.title = "Shop"
 shop.description = "You are standing in a small shop. A sign behind the mechanical shopkeeper says 'WILL PAY FOR TREASURE'."
 shop.save()
-
-
-

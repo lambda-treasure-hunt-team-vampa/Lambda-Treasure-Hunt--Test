@@ -93,6 +93,8 @@ def make_move(move):
     return move_response
 
 traversal_graph = Traversal_Graph()
+with open(os.path.join(dirname, 'traversal_graph.txt')) as json_file:
+    traversal_graph.vertices = json.load(json_file)
 init_response = get_init_response()
 traversal_graph.add_vertex(init_response)
 
