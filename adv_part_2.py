@@ -59,7 +59,7 @@ class Traversal_Graph_Complete:
                                     directions.append(option)
                         return(directions)
                     visited.add(vertex)
-                if key_to_search == 'items':
+                if key_to_search in ['items', 'description']:
                     if value_to_search in self.vertices[vertex][key_to_search]:
                         # Do the thing!
                         directions = []
@@ -147,6 +147,26 @@ def check_status():
     sleep(status_response['cooldown'])
     return status_response
 
+def change_name(name):
+    change_name_endpoint = "https://lambda-treasure-hunt.herokuapp.com/api/adv/change_name/"
+    # change_name_endpoint = "http://127.0.0.1:8000/api/adv/change_name/"
+    change_name_headers = {"Content-Type": "application/json", "Authorization": f"Token {config('SECRET_KEY')}"}
+    # change_name_headers = {"Content-Type": "application/json", "Authorization": f"Token {config('TEST_KEY')}"}
+    change_name_payload = {"name": name, "confirm": "aye"}
+    change_name_response = json.loads(requests.post(change_name_endpoint, data=json.dumps(change_name_payload), headers=change_name_headers).content)
+    sleep(change_name_response['cooldown'])
+    return change_name_response
+
+def pray():
+    pray_endpoint = "https://lambda-treasure-hunt.herokuapp.com/api/adv/pray/"
+    # pray_endpoint = "http://127.0.0.1:8000/api/adv/pray/"
+    pray_headers = {"Content-Type": "application/json", "Authorization": f"Token {config('SECRET_KEY')}"}
+    # pray_headers = {"Content-Type": "application/json", "Authorization": f"Token {config('TEST_KEY')}"}
+    pray_response = json.loads(requests.post(pray_endpoint, headers=pray_headers).content)
+    sleep(pray_response['cooldown'])
+    return pray_response
+
+
 traversal_graph = Traversal_Graph_Complete()
 with open(os.path.join(dirname, 'traversal_graph_complete.txt')) as json_file:
     traversal_graph.vertices = json.load(json_file)
@@ -164,6 +184,7 @@ for vertex in traversal_graph.vertices:
 
 check_status_response = check_status()
 print(f'CHECK STATUS RESPONSE: {check_status_response}')
+name = check_status_response['name']
 gold = check_status_response['gold']
 encumbrance = check_status_response['encumbrance']
 init_response = get_init_response()
@@ -171,43 +192,68 @@ traversal_graph.vertices[init_response['room_id']]['items'] = init_response['ite
 
 counter = 0
 start_time = time()
-while gold < 1000:
-    while encumbrance < 7:
-        to_treasure = traversal_graph.bfs(init_response, 'items', 'small treasure')
-        for move in to_treasure:
+while name != 'spmcdonnell':
+    while gold < 1000:
+        while encumbrance < 7:
+            to_treasure = traversal_graph.bfs(init_response, 'items', 'small treasure')
+            for move in to_treasure:
+                make_wise_move(move, init_response, traversal_graph)
+                counter += 1
+                print(f'{counter} moves made in {time() - start_time} seconds.')
+                init_response = get_init_response()
+                traversal_graph.vertices[init_response['room_id']]['items'] = init_response['items']
+                for item in init_response['items']:
+                    if 'treasure' in item:
+                        examine_response = examine_item(item)
+                        print(f'EXAMINE RESPONSE: {examine_response}')
+                        take_item_response = take_item(item)
+                        init_response = get_init_response()
+                        traversal_graph.vertices[init_response['room_id']]['items'] = init_response['items']
+                        check_status_response = check_status()
+                        print(f'CHECK STATUS RESPONSE: {check_status_response}')
+                        encumbrance = check_status_response['encumbrance']
+                        if encumbrance >= 7:
+                            break
+                if encumbrance >= 7:
+                    break
+        to_shop = traversal_graph.bfs(init_response, 'title', 'Shop')
+        for move in to_shop:
             make_wise_move(move, init_response, traversal_graph)
             counter += 1
             print(f'{counter} moves made in {time() - start_time} seconds.')
             init_response = get_init_response()
             traversal_graph.vertices[init_response['room_id']]['items'] = init_response['items']
-            for item in init_response['items']:
+        if init_response['title'] == 'Shop':
+            check_status_response = check_status()
+            for item in check_status_response['inventory']:
                 if 'treasure' in item:
-                    examine_response = examine_item(item)
-                    print(f'EXAMINE RESPONSE: {examine_response}')
-                    take_item_response = take_item(item)
-                    init_response = get_init_response()
-                    traversal_graph.vertices[init_response['room_id']]['items'] = init_response['items']
+                    sell_item_response = sell_item(item)
+                    print(f'SELL ITEM RESPONSE: {sell_item_response}')
                     check_status_response = check_status()
                     print(f'CHECK STATUS RESPONSE: {check_status_response}')
+                    gold = check_status_response['gold']
                     encumbrance = check_status_response['encumbrance']
-                    if encumbrance >= 7:
-                        break
-            if encumbrance >= 7:
-                break
-    to_shop = traversal_graph.bfs(init_response, 'title', 'Shop')
-    for move in to_shop:
+    to_name_changer = traversal_graph.bfs(init_response, 'description', "change_name")
+    for move in to_name_changer:
         make_wise_move(move, init_response, traversal_graph)
         counter += 1
         print(f'{counter} moves made in {time() - start_time} seconds.')
         init_response = get_init_response()
         traversal_graph.vertices[init_response['room_id']]['items'] = init_response['items']
-    if init_response['title'] == 'Shop':
+    if "change_name" in init_response['description']:
+        change_name_response = change_name('spmcdonnell')
+        print(f"CHANGE NAME RESPONSE: {change_name_response}")
         check_status_response = check_status()
-        for item in check_status_response['inventory']:
-            if 'treasure' in item:
-                sell_item_response = sell_item(item)
-                print(f'SELL ITEM RESPONSE: {sell_item_response}')
-                check_status_response = check_status()
-                print(f'CHECK STATUS RESPONSE: {check_status_response}')
-                gold = check_status_response['gold']
-                encumbrance = check_status_response['encumbrance']
+        print(f'CHECK STATUS RESPONSE: {check_status_response}')
+to_shrine = traversal_graph.bfs(init_response, 'description', "shrine")
+for move in to_shrine:
+    make_wise_move(move, init_response, traversal_graph)
+    counter += 1
+    print(f'{counter} moves made in {time() - start_time} seconds.')
+    init_response = get_init_response()
+    traversal_graph.vertices[init_response['room_id']]['items'] = init_response['items']
+if 'shrine' in init_response['description']:
+    pray_response = pray()
+    print(f"PRAY RESPONSE: {pray_response}")
+    check_status_response = check_status()
+    print(f'CHECK STATUS RESPONSE: {check_status_response}')
