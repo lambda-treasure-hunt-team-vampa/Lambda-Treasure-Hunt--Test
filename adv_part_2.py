@@ -189,6 +189,7 @@ while gold < 1000:
         counter += 1
         print(f'{counter} moves made in {time() - start_time} seconds.')
         init_response = get_init_response()
+        traversal_graph.vertices[init_response['room_id']]['items'] = init_response['items']
     if init_response['title'] == 'Shop':
         check_status_response = check_status()
         for item in check_status_response['inventory']:
