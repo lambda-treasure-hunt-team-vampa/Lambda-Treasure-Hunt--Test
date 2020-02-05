@@ -180,6 +180,8 @@ while gold < 1000:
                     examine_response = examine_item(item)
                     print(f'EXAMINE RESPONSE: {examine_response}')
                     take_item_response = take_item(item)
+                    init_response = get_init_response()
+                    traversal_graph.vertices[init_response['room_id']]['items'] = init_response['items']
                     check_status_response = check_status()
                     print(f'CHECK STATUS RESPONSE: {check_status_response}')
                     encumbrance = check_status_response['encumbrance']
