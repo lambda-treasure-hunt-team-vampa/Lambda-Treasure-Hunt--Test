@@ -12,13 +12,16 @@ movement_dict = {'n': 's', 'e': 'w', 's': 'n', 'w': 'e'}
 class Queue():
     def __init__(self):
         self.queue = []
+
     def enqueue(self, value):
         self.queue.append(value)
+
     def dequeue(self):
         if self.size() > 0:
             return self.queue.pop(0)
         else:
             return None
+
     def size(self):
         return len(self.queue)
 
@@ -26,8 +29,10 @@ class Queue():
 class Traversal_Graph_Complete:
     def __init__(self):
         self.vertices = {}
+
     def get_neighbors(self, room_id):
         return set(self.vertices[room_id]['exits'].values())
+
     def bfs(self, init_response, key_to_search, value_to_search):
         # Create a queue/stack as appropriate
         queue = Queue()
@@ -185,6 +190,10 @@ while gold < 1000:
                     check_status_response = check_status()
                     print(f'CHECK STATUS RESPONSE: {check_status_response}')
                     encumbrance = check_status_response['encumbrance']
+                    if encumbrance >= 7:
+                        break
+            if encumbrance >= 7:
+                break
     to_shop = traversal_graph.bfs(init_response, 'title', 'Shop')
     for move in to_shop:
         make_wise_move(move, init_response, traversal_graph)
@@ -200,4 +209,5 @@ while gold < 1000:
                 print(f'SELL ITEM RESPONSE: {sell_item_response}')
                 check_status_response = check_status()
                 print(f'CHECK STATUS RESPONSE: {check_status_response}')
+                gold = check_status_response['gold']
                 encumbrance = check_status_response['encumbrance']
