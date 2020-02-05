@@ -47,7 +47,18 @@ class Traversal_Graph_Complete:
                     if self.vertices[vertex][key_to_search] == value_to_search:
                         # Do the thing!
                         directions = []
-                        for i in range(1, len(path[:-1])):
+                        for i in range(1, len(path)):
+                            for option in traversal_graph.vertices[path[i - 1]]['exits']:
+                                if traversal_graph.vertices[path[i - 1]]['exits'][
+                                    option] == path[i]:
+                                    directions.append(option)
+                        return(directions)
+                    visited.add(vertex)
+                if key_to_search == 'items':
+                    if value_to_search in self.vertices[vertex][key_to_search]:
+                        # Do the thing!
+                        directions = []
+                        for i in range(1, len(path)):
                             for option in traversal_graph.vertices[path[i - 1]]['exits']:
                                 if traversal_graph.vertices[path[i - 1]]['exits'][
                                     option] == path[i]:
@@ -117,7 +128,7 @@ def sell_item(item):
     # sell_endpoint = "http://127.0.0.1:8000/api/adv/sell/"
     sell_headers = {"Content-Type": "application/json", "Authorization": f"Token {config('SECRET_KEY')}"}
     # sell_headers = {"Content-Type": "application/json", "Authorization": f"Token {config('TEST_KEY')}"}
-    sell_payload = {"name": item}
+    sell_payload = {"name": item, "confirm": "yes"}
     sell_response = json.loads(requests.post(sell_endpoint, data=json.dumps(sell_payload), headers=sell_headers).content)
     sleep(sell_response['cooldown'])
     return sell_response
@@ -151,29 +162,27 @@ print(f'CHECK STATUS RESPONSE: {check_status_response}')
 gold = check_status_response['gold']
 encumbrance = check_status_response['encumbrance']
 init_response = get_init_response()
+traversal_graph.vertices[init_response['room_id']]['items'] = init_response['items']
 
 counter = 0
 start_time = time()
 while gold < 1000:
     while encumbrance < 7:
-        available_moves = list(traversal_graph.vertices[init_response['room_id']]['exits'].keys())
-        # We don't want to move to the room we came from unless we have to, so...
-        if (len(available_moves) > 1) and (counter > 0):
-            available_moves = [move for move in available_moves if move != movement_dict[last_move]]
-        move = random.choice(available_moves)
-        make_wise_move(move, init_response, traversal_graph)
-        counter += 1
-        print(f'{counter} moves made in {time() - start_time} seconds.')
-        last_move = move
-        init_response = get_init_response()
-        for item in init_response['items']:
-            if 'treasure' in item:
-                examine_response = examine_item(item)
-                print(f'EXAMINE RESPONSE: {examine_response}')
-                take_item_response = take_item(item)
-                check_status_response = check_status()
-                print(f'CHECK STATUS RESPONSE: {check_status_response}')
-                encumbrance = check_status_response['encumbrance']
+        to_treasure = traversal_graph.bfs(init_response, 'items', 'small treasure')
+        for move in to_treasure:
+            make_wise_move(move, init_response, traversal_graph)
+            counter += 1
+            print(f'{counter} moves made in {time() - start_time} seconds.')
+            init_response = get_init_response()
+            traversal_graph.vertices[init_response['room_id']]['items'] = init_response['items']
+            for item in init_response['items']:
+                if 'treasure' in item:
+                    examine_response = examine_item(item)
+                    print(f'EXAMINE RESPONSE: {examine_response}')
+                    take_item_response = take_item(item)
+                    check_status_response = check_status()
+                    print(f'CHECK STATUS RESPONSE: {check_status_response}')
+                    encumbrance = check_status_response['encumbrance']
     to_shop = traversal_graph.bfs(init_response, 'title', 'Shop')
     for move in to_shop:
         make_wise_move(move, init_response, traversal_graph)
@@ -182,7 +191,10 @@ while gold < 1000:
         init_response = get_init_response()
     if init_response['title'] == 'Shop':
         check_status_response = check_status()
-        for item in check_status_response['items']:
+        for item in check_status_response['inventory']:
             if 'treasure' in item:
                 sell_item_response = sell_item(item)
                 print(f'SELL ITEM RESPONSE: {sell_item_response}')
+                check_status_response = check_status()
+                print(f'CHECK STATUS RESPONSE: {check_status_response}')
+                encumbrance = check_status_response['encumbrance']
