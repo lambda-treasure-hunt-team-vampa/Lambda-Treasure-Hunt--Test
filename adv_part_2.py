@@ -4,6 +4,7 @@ import json
 import random
 from time import sleep, time
 import os
+import hashlib
 
 dirname = os.path.dirname(os.path.abspath(__file__))
 movement_dict = {'n': 's', 'e': 'w', 's': 'n', 'w': 'e'}
@@ -48,6 +49,17 @@ class Traversal_Graph_Complete:
             vertex = path[-1]
         #   If not visited
             if vertex not in visited:
+                if key_to_search == 'room_id':
+                    if vertex == value_to_search:
+                        # Do the thing!
+                        directions = []
+                        for i in range(1, len(path)):
+                            for option in traversal_graph.vertices[path[i - 1]]['exits']:
+                                if traversal_graph.vertices[path[i - 1]]['exits'][
+                                    option] == path[i]:
+                                    directions.append(option)
+                        return(directions)
+                    visited.add(vertex)
                 if key_to_search == 'title':
                     if self.vertices[vertex][key_to_search] == value_to_search:
                         # Do the thing!
@@ -166,6 +178,34 @@ def pray():
     sleep(pray_response['cooldown'])
     return pray_response
 
+def get_last_proof():
+    last_proof_endpoint = "https://lambda-treasure-hunt.herokuapp.com/api/bc/last_proof/"
+    # last_proof_endpoint = "http://127.0.0.1:8000/api/bc/last_proof/"
+    last_proof_headers = {"Authorization": f"Token {config('SECRET_KEY')}"}
+    # last_proof_headers = {"Authorization": f"Token {config('TEST_KEY')}"}
+    last_proof_response = json.loads(requests.get(last_proof_endpoint, headers=last_proof_headers).content)
+    sleep(last_proof_response['cooldown'])
+    return last_proof_response
+
+def mine(proof):
+    mine_endpoint = "https://lambda-treasure-hunt.herokuapp.com/api/bc/mine/"
+    # mine_endpoint = "http://127.0.0.1:8000/api/bc/mine/"
+    mine_headers = {"Content-Type": "application/json", "Authorization": f"Token {config('SECRET_KEY')}"}
+    # mine_headers = {"Content-Type": "application/json", "Authorization": f"Token {config('TEST_KEY')}"}
+    mine_payload = {"proof": proof}
+    mine_response = json.loads(requests.post(mine_endpoint, data=json.dumps(mine_payload), headers=mine_headers).content)
+    sleep(mine_response['cooldown'])
+    return mine_response
+
+def get_lambda_coin_balance():
+    lambda_coin_balance_endpoint = "https://lambda-treasure-hunt.herokuapp.com/api/bc/get_balance/"
+    # lambda_coin_balance_endpoint = "http://127.0.0.1:8000/api/bc/get_balance/"
+    lambda_coin_balance_headers = {"Authorization": f"Token {config('SECRET_KEY')}"}
+    # lambda_coin_balance_headers = {"Authorization": f"Token {config('TEST_KEY')}"}
+    lambda_coin_balance_response = json.loads(requests.get(lambda_coin_balance_endpoint, headers=lambda_coin_balance_headers).content)
+    sleep(lambda_coin_balance_response['cooldown'])
+    return lambda_coin_balance_response
+
 
 traversal_graph = Traversal_Graph_Complete()
 with open(os.path.join(dirname, 'traversal_graph_complete.txt')) as json_file:
@@ -245,15 +285,63 @@ while name != 'lauradondiego':
         print(f"CHANGE NAME RESPONSE: {change_name_response}")
         check_status_response = check_status()
         print(f'CHECK STATUS RESPONSE: {check_status_response}')
-to_shrine = traversal_graph.bfs(init_response, 'description', "shrine")
-for move in to_shrine:
-    make_wise_move(move, init_response, traversal_graph)
-    counter += 1
-    print(f'{counter} moves made in {time() - start_time} seconds.')
-    init_response = get_init_response()
-    traversal_graph.vertices[init_response['room_id']]['items'] = init_response['items']
-if 'shrine' in init_response['description']:
-    pray_response = pray()
-    print(f"PRAY RESPONSE: {pray_response}")
-    check_status_response = check_status()
-    print(f'CHECK STATUS RESPONSE: {check_status_response}')
+# to_shrine = traversal_graph.bfs(init_response, 'description', "shrine")
+# for move in to_shrine:
+#     make_wise_move(move, init_response, traversal_graph)
+#     counter += 1
+#     print(f'{counter} moves made in {time() - start_time} seconds.')
+#     init_response = get_init_response()
+#     traversal_graph.vertices[init_response['room_id']]['items'] = init_response['items']
+# if 'shrine' in init_response['description']:
+#     pray_response = pray()
+#     print(f"PRAY RESPONSE: {pray_response}")
+#     check_status_response = check_status()
+#     print(f'CHECK STATUS RESPONSE: {check_status_response}')
+while True:
+    to_wishing_well = traversal_graph.bfs(init_response, 'title', "Wishing Well")
+    for move in to_wishing_well:
+        make_wise_move(move, init_response, traversal_graph)
+        counter += 1
+        print(f'{counter} moves made in {time() - start_time} seconds.')
+        init_response = get_init_response()
+        traversal_graph.vertices[init_response['room_id']]['items'] = init_response['items']
+    if init_response['title'] == 'Wishing Well':    
+        examine_response = examine_item('Wishing Well')
+        print(f'EXAMINE RESPONSE: {examine_response}')
+        check_status_response = check_status()
+        print(f'CHECK STATUS RESPONSE: {check_status_response}')
+        faint_pattern = examine_response['description'].split('...\n\n')[1]
+        with open(os.path.join(dirname, 'faint_pattern.ls8'), 'w') as outfile:
+            outfile.write(faint_pattern)
+        faint_pattern = faint_pattern.split('\n')
+        faint_pattern = ''.join([chr(int(faint_pattern[i], 2)) for i in range(
+            len(faint_pattern)) if ((i - 2) % 5) == 0])
+        print(f'FAINT PATTERN: {faint_pattern}')
+        room_id = int(faint_pattern.replace('Mine your coin in room ', ''))
+    to_mining_location = traversal_graph.bfs(init_response, 'room_id', room_id)
+    for move in to_mining_location:
+        make_wise_move(move, init_response, traversal_graph)
+        counter += 1
+        print(f'{counter} moves made in {time() - start_time} seconds.')
+        init_response = get_init_response()
+        traversal_graph.vertices[init_response['room_id']]['items'] = init_response['items']
+    if init_response['room_id'] == room_id:
+        last_proof_response = get_last_proof()
+        print(f'GET LAST PROOF RESPONSE: {last_proof_response}')
+        last_proof = last_proof_response['proof']
+        difficulty = last_proof_response['difficulty']
+        while True:
+            proof = random.randint(0, 9999999999)
+            guess = f"{last_proof}{proof}".encode()
+            guess_hash = hashlib.sha256(guess).hexdigest()
+            if guess_hash[:difficulty] == ''.join(['0' for _ in range(difficulty)]):
+                break
+        print(f'NEW PROOF: {proof}')
+        mine_response = mine(proof)
+        print(f'MINE RESPONSE: {mine_response}')
+        lambda_coin_balance_response = get_lambda_coin_balance()
+        print(f'LAMBDA COIN BALANCE RESPONSE: {lambda_coin_balance_response}')
+        check_status_response = check_status()
+        print(f'CHECK STATUS RESPONSE: {check_status_response}')
+        if lambda_coin_balance_response['messages'][0] != 'You have a balance of 0 Lambda Coins':
+            break
