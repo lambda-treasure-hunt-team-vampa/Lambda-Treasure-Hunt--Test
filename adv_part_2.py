@@ -252,6 +252,26 @@ def recall():
     sleep(recall_response['cooldown'])
     return recall_response
 
+def carry(item):
+    carry_endpoint = "https://lambda-treasure-hunt.herokuapp.com/api/adv/carry/"
+    # carry_endpoint = "http://127.0.0.1:8000/api/adv/carry/"
+    carry_headers = {"Content-Type": "application/json", "Authorization": f"Token {config('SECRET_KEY')}"}
+    # carry_headers = {"Content-Type": "application/json", "Authorization": f"Token {config('TEST_KEY')}"}
+    carry_payload = {"name": item}
+    carry_response = json.loads(requests.post(carry_endpoint, data=json.dumps(carry_payload), headers=carry_headers).content)
+    sleep(carry_response['cooldown'])
+    return carry_response
+
+def receive(item):
+    receive_endpoint = "https://lambda-treasure-hunt.herokuapp.com/api/adv/receive/"
+    # receive_endpoint = "http://127.0.0.1:8000/api/adv/receive/"
+    receive_headers = {"Content-Type": "application/json", "Authorization": f"Token {config('SECRET_KEY')}"}
+    # receive_headers = {"Content-Type": "application/json", "Authorization": f"Token {config('TEST_KEY')}"}
+    receive_payload = {"name": item}
+    receive_response = json.loads(requests.post(receive_endpoint, data=json.dumps(receive_payload), headers=receive_headers).content)
+    sleep(receive_response['cooldown'])
+    return receive_response
+
 def get_last_proof():
     last_proof_endpoint = "https://lambda-treasure-hunt.herokuapp.com/api/bc/last_proof/"
     # last_proof_endpoint = "http://127.0.0.1:8000/api/bc/last_proof/"
@@ -279,6 +299,16 @@ def get_lambda_coin_balance():
     lambda_coin_balance_response = json.loads(requests.get(lambda_coin_balance_endpoint, headers=lambda_coin_balance_headers).content)
     sleep(lambda_coin_balance_response['cooldown'])
     return lambda_coin_balance_response
+
+def transmogrify(item):
+    transmogrify_endpoint = "https://lambda-treasure-hunt.herokuapp.com/api/adv/transmogrify/"
+    # transmogrify_endpoint = "http://127.0.0.1:8000/api/adv/transmogrify/"
+    transmogrify_headers = {"Content-Type": "application/json", "Authorization": f"Token {config('SECRET_KEY')}"}
+    # transmogrify_headers = {"Content-Type": "application/json", "Authorization": f"Token {config('TEST_KEY')}"}
+    transmogrify_payload = {"name": item}
+    transmogrify_response = json.loads(requests.post(transmogrify_endpoint, data=json.dumps(transmogrify_payload), headers=transmogrify_headers).content)
+    sleep(transmogrify_response['cooldown'])
+    return transmogrify_response
 
 def get_dash_sequences(directions):
     if len(directions) == 0:
@@ -330,6 +360,14 @@ for vertex in traversal_graph.vertices:
     for direction in traversal_graph.vertices[vertex]['exits']:
         exits[direction] = int(traversal_graph.vertices[vertex]['exits'][direction])
     traversal_graph.vertices[vertex]['exits'] = exits
+
+rooms_and_descriptions = set()
+for vertex in traversal_graph.vertices:
+    rooms_and_descriptions.add(
+        (traversal_graph.vertices[vertex]['title'], traversal_graph.vertices[vertex]['description'], ))
+print('ROOMS AND DESCRIPTIONS:')
+for room_and_description in rooms_and_descriptions:
+    print(room_and_description)
 
 check_status_response = check_status()
 print(f'CHECK STATUS RESPONSE: {check_status_response}')
@@ -431,6 +469,26 @@ while name != my_name:
 #         print(f'CHECK STATUS RESPONSE: {check_status_response}')
 #         shrines.remove(init_response['room_id'])
 
+# extra_shrines = set(["Sandofsky's Sanctum", "Glasowyn's Grave"])
+# while len(extra_shrines) > 0:
+#     to_extra_shrines = traversal_graph.bfs(init_response, 'title', extra_shrines)
+#     if 'recall' in check_status_response['abilities']:
+#         init_response, to_extra_shrines = directions_with_recall(init_response, 'title', extra_shrines)
+#     if 'dash' in check_status_response['abilities']:
+#         to_extra_shrines = get_dash_sequences(to_extra_shrines)
+#     for move in to_extra_shrines:
+#         make_wise_move(move, init_response, check_status_response, traversal_graph)
+#         counter += 1
+#         print(f'{counter} moves made in {time() - start_time} seconds.')
+#         init_response = get_init_response()
+#         traversal_graph.vertices[init_response['room_id']]['items'] = init_response['items']
+#     if init_response['title'] in extra_shrines:
+#         pray_response = pray()
+#         print(f"PRAY RESPONSE: {pray_response}")
+#         check_status_response = check_status()
+#         print(f'CHECK STATUS RESPONSE: {check_status_response}')
+#         extra_shrines.remove(init_response['title'])
+
 # while True:
 #     to_wishing_well = traversal_graph.bfs(init_response, 'title', "Wishing Well")
 #     if 'recall' in check_status_response['abilities']:
@@ -494,36 +552,79 @@ while name != my_name:
 #         check_status_response = check_status()
 #         print(f'CHECK STATUS RESPONSE: {check_status_response}')
 
-rooms = set()
-for vertex in traversal_graph.vertices:
-    rooms.add(traversal_graph.vertices[vertex]['title'])
-print('ROOMS:')
-for room in rooms:
-    print(room)
-
-descriptions = set()
-for vertex in traversal_graph.vertices:
-    descriptions.add(traversal_graph.vertices[vertex]['description'])
-print('DESCRIPTIONS:')
-for description in descriptions:
-    print(description)
-
-extra_shrines = set(["Sandofsky's Sanctum", "Glasowyn's Grave", "Arron's Athenaeum"])
-while len(extra_shrines) > 0:
-    to_extra_shrines = traversal_graph.bfs(init_response, 'title', extra_shrines)
+lambda_coin_balance_response = get_lambda_coin_balance()
+balance_message = lambda_coin_balance_response['messages'][0]
+while (encumbrance < 10) and balance_message != ('You have a balance of 0.0 Lambda Coins'):
+    to_treasure = traversal_graph.bfs(init_response, 'items', 'small treasure')
     if 'recall' in check_status_response['abilities']:
-        init_response, to_extra_shrines = directions_with_recall(init_response, 'title', extra_shrines)
+        init_response, to_treasure = directions_with_recall(init_response, 'items', 'small treasure')
     if 'dash' in check_status_response['abilities']:
-        to_extra_shrines = get_dash_sequences(to_extra_shrines)
-    for move in to_extra_shrines:
+        to_treasure = get_dash_sequences(to_treasure)
+    for move in to_treasure:
         make_wise_move(move, init_response, check_status_response, traversal_graph)
         counter += 1
         print(f'{counter} moves made in {time() - start_time} seconds.')
         init_response = get_init_response()
         traversal_graph.vertices[init_response['room_id']]['items'] = init_response['items']
-    if init_response['title'] in extra_shrines:
-        pray_response = pray()
-        print(f"PRAY RESPONSE: {pray_response}")
-        check_status_response = check_status()
-        print(f'CHECK STATUS RESPONSE: {check_status_response}')
-        extra_shrines.remove(init_response['title'])
+        for item in init_response['items']:
+            if 'treasure' in item:
+                examine_response = examine_item(item)
+                print(f'EXAMINE RESPONSE: {examine_response}')
+                take_item_response = take_item(item)
+                init_response = get_init_response()
+                traversal_graph.vertices[init_response['room_id']]['items'] = init_response['items']
+                check_status_response = check_status()
+                print(f'CHECK STATUS RESPONSE: {check_status_response}')
+                encumbrance = check_status_response['encumbrance']
+                if encumbrance >= 10:
+                    carry_response = carry(item)
+                    print(f'CARRY RESPONSE: {carry_response}')
+                    break
+        if encumbrance >= 10:
+            carry_response = carry(item)
+            print(f'CARRY RESPONSE: {carry_response}')
+            break
+to_transmogrifier = traversal_graph.bfs(init_response, 'title', 'The Transmogrifier')
+if 'recall' in check_status_response['abilities']:
+    init_response, to_transmogrifier = directions_with_recall(init_response, 'title', 'The Transmogrifier')
+if 'dash' in check_status_response['abilities']:
+    to_transmogrifier = get_dash_sequences(to_transmogrifier)
+for move in to_transmogrifier:
+    make_wise_move(move, init_response, check_status_response, traversal_graph)
+    counter += 1
+    print(f'{counter} moves made in {time() - start_time} seconds.')
+    init_response = get_init_response()
+    traversal_graph.vertices[init_response['room_id']]['items'] = init_response['items']
+if init_response['title'] == 'The Transmogrifier':
+    receive_response = receive(item)
+    print(f'RECEIVE RESPONSE: {receive_response}')
+    check_status_response = check_status()
+    for item in check_status_response['inventory']:
+        if 'treasure' in item:
+            transmogrify_response = transmogrify(item)
+            print(f'TRANSMOGRIFY RESPONSE: {transmogrify_response}')
+            check_status_response = check_status()
+            print(f'CHECK STATUS RESPONSE: {check_status_response}')
+            lambda_coin_balance_response = get_lambda_coin_balance()
+            balance_message = lambda_coin_balance_response['messages'][0]
+            encumbrance = check_status_response['encumbrance']
+
+# special_rooms = set(["Arron's Athenaeum"])
+# while len(special_rooms) > 0:
+#     to_special_rooms = traversal_graph.bfs(init_response, 'title', special_rooms)
+#     if 'recall' in check_status_response['abilities']:
+#         init_response, to_special_rooms = directions_with_recall(init_response, 'title', special_rooms)
+#     if 'dash' in check_status_response['abilities']:
+#         to_special_rooms = get_dash_sequences(to_special_rooms)
+#     for move in to_special_rooms:
+#         make_wise_move(move, init_response, check_status_response, traversal_graph)
+#         counter += 1
+#         print(f'{counter} moves made in {time() - start_time} seconds.')
+#         init_response = get_init_response()
+#         traversal_graph.vertices[init_response['room_id']]['items'] = init_response['items']
+#     if init_response['title'] in special_rooms:
+#         examine_response = examine_item('book')
+#         print(f"EXAMINE RESPONSE: {examine_response}")
+#         check_status_response = check_status()
+#         print(f'CHECK STATUS RESPONSE: {check_status_response}')
+#         special_rooms.remove(init_response['title'])
