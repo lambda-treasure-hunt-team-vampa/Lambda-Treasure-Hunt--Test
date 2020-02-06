@@ -5,9 +5,14 @@ import random
 from time import sleep, time
 import os
 import hashlib
+import io
+from contextlib import redirect_stdout
+
+from cpu import *
 
 dirname = os.path.dirname(os.path.abspath(__file__))
 movement_dict = {'n': 's', 'e': 'w', 's': 'n', 'w': 'e'}
+my_name = config('MY_NAME')
 
 
 class Queue():
@@ -232,7 +237,7 @@ traversal_graph.vertices[init_response['room_id']]['items'] = init_response['ite
 
 counter = 0
 start_time = time()
-while name != 'nrvanwyck':
+while name != my_name:
     while gold < 1000:
         while encumbrance < 7:
             to_treasure = traversal_graph.bfs(init_response, 'items', 'small treasure')
@@ -281,7 +286,7 @@ while name != 'nrvanwyck':
         init_response = get_init_response()
         traversal_graph.vertices[init_response['room_id']]['items'] = init_response['items']
     if "change_name" in init_response['description']:
-        change_name_response = change_name('nrvanwyck')
+        change_name_response = change_name(my_name)
         print(f"CHANGE NAME RESPONSE: {change_name_response}")
         check_status_response = check_status()
         print(f'CHECK STATUS RESPONSE: {check_status_response}')
@@ -313,9 +318,12 @@ while True:
         faint_pattern = examine_response['description'].split('...\n\n')[1]
         with open(os.path.join(dirname, 'faint_pattern.ls8'), 'w') as outfile:
             outfile.write(faint_pattern)
-        faint_pattern = faint_pattern.split('\n')
-        faint_pattern = ''.join([chr(int(faint_pattern[i], 2)) for i in range(
-            len(faint_pattern)) if ((i - 2) % 5) == 0])
+        cpu = CPU()
+        cpu.load(os.path.join(dirname, 'faint_pattern.ls8'))
+        f = io.StringIO()
+        with redirect_stdout(f):
+            cpu.run()
+        faint_pattern = f.getvalue().replace('\n', '')
         print(f'FAINT PATTERN: {faint_pattern}')
         room_id = int(faint_pattern.replace('Mine your coin in room ', ''))
     to_mining_location = traversal_graph.bfs(init_response, 'room_id', room_id)
@@ -331,17 +339,18 @@ while True:
         last_proof = last_proof_response['proof']
         difficulty = last_proof_response['difficulty']
         while True:
-            proof = random.randint(0, 9999999999)
-            guess = f"{last_proof}{proof}".encode()
-            guess_hash = hashlib.sha256(guess).hexdigest()
-            if guess_hash[:difficulty] == ''.join(['0' for _ in range(difficulty)]):
+            while True:
+                proof = random.randint(0, 9999999999)
+                guess = f"{last_proof}{proof}".encode()
+                guess_hash = hashlib.sha256(guess).hexdigest()
+                if guess_hash[:difficulty] == ''.join(['0' for _ in range(difficulty)]):
+                    break
+            print(f'NEW PROOF: {proof}')
+            mine_response = mine(proof)
+            print(f'MINE RESPONSE: {mine_response}')
+            if mine_response['messages'][0] == 'New Block Forged':
                 break
-        print(f'NEW PROOF: {proof}')
-        mine_response = mine(proof)
-        print(f'MINE RESPONSE: {mine_response}')
         lambda_coin_balance_response = get_lambda_coin_balance()
         print(f'LAMBDA COIN BALANCE RESPONSE: {lambda_coin_balance_response}')
         check_status_response = check_status()
         print(f'CHECK STATUS RESPONSE: {check_status_response}')
-        if lambda_coin_balance_response['messages'][0] != 'You have a balance of 0 Lambda Coins':
-            break
