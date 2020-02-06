@@ -55,15 +55,25 @@ class Traversal_Graph_Complete:
         #   If not visited
             if vertex not in visited:
                 if key_to_search == 'room_id':
-                    if vertex == value_to_search:
-                        # Do the thing!
-                        directions = []
-                        for i in range(1, len(path)):
-                            for option in traversal_graph.vertices[path[i - 1]]['exits']:
-                                if traversal_graph.vertices[path[i - 1]]['exits'][
-                                    option] == path[i]:
-                                    directions.append(option)
-                        return(directions)
+                    if type(value_to_search) == set:
+                        if vertex in value_to_search:
+                            directions = []
+                            for i in range(1, len(path)):
+                                for option in traversal_graph.vertices[path[i - 1]]['exits']:
+                                    if traversal_graph.vertices[path[i - 1]]['exits'][
+                                        option] == path[i]:
+                                        directions.append(option)
+                            return(directions)
+                    elif type(value_to_search) != set:
+                        if vertex == value_to_search:
+                            # Do the thing!
+                            directions = []
+                            for i in range(1, len(path)):
+                                for option in traversal_graph.vertices[path[i - 1]]['exits']:
+                                    if traversal_graph.vertices[path[i - 1]]['exits'][
+                                        option] == path[i]:
+                                        directions.append(option)
+                            return(directions)
                     visited.add(vertex)
                 if key_to_search == 'title':
                     if self.vertices[vertex][key_to_search] == value_to_search:
@@ -290,67 +300,78 @@ while name != my_name:
         print(f"CHANGE NAME RESPONSE: {change_name_response}")
         check_status_response = check_status()
         print(f'CHECK STATUS RESPONSE: {check_status_response}')
-# to_shrine = traversal_graph.bfs(init_response, 'description', "shrine")
-# for move in to_shrine:
-#     make_wise_move(move, init_response, traversal_graph)
-#     counter += 1
-#     print(f'{counter} moves made in {time() - start_time} seconds.')
-#     init_response = get_init_response()
-#     traversal_graph.vertices[init_response['room_id']]['items'] = init_response['items']
-# if 'shrine' in init_response['description']:
-#     pray_response = pray()
-#     print(f"PRAY RESPONSE: {pray_response}")
-#     check_status_response = check_status()
-#     print(f'CHECK STATUS RESPONSE: {check_status_response}')
-while True:
-    to_wishing_well = traversal_graph.bfs(init_response, 'title', "Wishing Well")
-    for move in to_wishing_well:
+
+shrines = set()
+for vertex in traversal_graph.vertices:
+    if 'shrine' in traversal_graph.vertices[vertex]['description']:
+        shrines.add(vertex)
+
+while len(shrines) > 0:
+    to_shrine = traversal_graph.bfs(init_response, 'room_id', shrines)
+    for move in to_shrine:
         make_wise_move(move, init_response, traversal_graph)
         counter += 1
         print(f'{counter} moves made in {time() - start_time} seconds.')
         init_response = get_init_response()
         traversal_graph.vertices[init_response['room_id']]['items'] = init_response['items']
-    if init_response['title'] == 'Wishing Well':    
-        examine_response = examine_item('Wishing Well')
-        print(f'EXAMINE RESPONSE: {examine_response}')
+    if 'shrine' in init_response['description']:
+        pray_response = pray()
+        print(f"PRAY RESPONSE: {pray_response}")
         check_status_response = check_status()
         print(f'CHECK STATUS RESPONSE: {check_status_response}')
-        faint_pattern = examine_response['description'].split('...\n\n')[1]
-        with open(os.path.join(dirname, 'faint_pattern.ls8'), 'w') as outfile:
-            outfile.write(faint_pattern)
-        cpu = CPU()
-        cpu.load(os.path.join(dirname, 'faint_pattern.ls8'))
-        f = io.StringIO()
-        with redirect_stdout(f):
-            cpu.run()
-        faint_pattern = f.getvalue().replace('\n', '')
-        print(f'FAINT PATTERN: {faint_pattern}')
-        room_id = int(faint_pattern.replace('Mine your coin in room ', ''))
-    to_mining_location = traversal_graph.bfs(init_response, 'room_id', room_id)
-    for move in to_mining_location:
-        make_wise_move(move, init_response, traversal_graph)
-        counter += 1
-        print(f'{counter} moves made in {time() - start_time} seconds.')
-        init_response = get_init_response()
-        traversal_graph.vertices[init_response['room_id']]['items'] = init_response['items']
-    if init_response['room_id'] == room_id:
-        last_proof_response = get_last_proof()
-        print(f'GET LAST PROOF RESPONSE: {last_proof_response}')
-        last_proof = last_proof_response['proof']
-        difficulty = last_proof_response['difficulty']
-        while True:
-            while True:
-                proof = random.randint(0, 9999999999)
-                guess = f"{last_proof}{proof}".encode()
-                guess_hash = hashlib.sha256(guess).hexdigest()
-                if guess_hash[:difficulty] == ''.join(['0' for _ in range(difficulty)]):
-                    break
-            print(f'NEW PROOF: {proof}')
-            mine_response = mine(proof)
-            print(f'MINE RESPONSE: {mine_response}')
-            if mine_response['messages'][0] == 'New Block Forged':
-                break
-        lambda_coin_balance_response = get_lambda_coin_balance()
-        print(f'LAMBDA COIN BALANCE RESPONSE: {lambda_coin_balance_response}')
-        check_status_response = check_status()
-        print(f'CHECK STATUS RESPONSE: {check_status_response}')
+        shrines.remove(init_response['room_id'])
+
+# while True:
+#     to_wishing_well = traversal_graph.bfs(init_response, 'title', "Wishing Well")
+#     for move in to_wishing_well:
+#         make_wise_move(move, init_response, traversal_graph)
+#         counter += 1
+#         print(f'{counter} moves made in {time() - start_time} seconds.')
+#         init_response = get_init_response()
+#         traversal_graph.vertices[init_response['room_id']]['items'] = init_response['items']
+#     if init_response['title'] == 'Wishing Well':    
+#         examine_response = examine_item('Wishing Well')
+#         print(f'EXAMINE RESPONSE: {examine_response}')
+#         check_status_response = check_status()
+#         print(f'CHECK STATUS RESPONSE: {check_status_response}')
+#         faint_pattern = examine_response['description'].split('...\n\n')[1]
+#         with open(os.path.join(dirname, 'faint_pattern.ls8'), 'w') as outfile:
+#             outfile.write(faint_pattern)
+#         cpu = CPU()
+#         cpu.load(os.path.join(dirname, 'faint_pattern.ls8'))
+#         f = io.StringIO()
+#         with redirect_stdout(f):
+#             cpu.run()
+#         faint_pattern = f.getvalue().replace('\n', '')
+#         print(f'FAINT PATTERN: {faint_pattern}')
+#         room_id = int(faint_pattern.replace('Mine your coin in room ', ''))
+#     to_mining_location = traversal_graph.bfs(init_response, 'room_id', room_id)
+#     for move in to_mining_location:
+#         make_wise_move(move, init_response, traversal_graph)
+#         counter += 1
+#         print(f'{counter} moves made in {time() - start_time} seconds.')
+#         init_response = get_init_response()
+#         traversal_graph.vertices[init_response['room_id']]['items'] = init_response['items']
+#     if init_response['room_id'] == room_id:
+#         last_proof_response = get_last_proof()
+#         print(f'GET LAST PROOF RESPONSE: {last_proof_response}')
+#         last_proof = last_proof_response['proof']
+#         difficulty = last_proof_response['difficulty']
+#         while True:
+#             while True:
+#                 proof = random.randint(0, 9999999999)
+#                 guess = f"{last_proof}{proof}".encode()
+#                 guess_hash = hashlib.sha256(guess).hexdigest()
+#                 if guess_hash[:difficulty] == ''.join(['0' for _ in range(difficulty)]):
+#                     break
+#             print(f'NEW PROOF: {proof}')
+#             mine_response = mine(proof)
+#             print(f'MINE RESPONSE: {mine_response}')
+#             if len(mine_response['errors']) > 0:
+#                 continue
+#             elif mine_response['messages'][0] == 'New Block Forged':
+#                 break
+#         lambda_coin_balance_response = get_lambda_coin_balance()
+#         print(f'LAMBDA COIN BALANCE RESPONSE: {lambda_coin_balance_response}')
+#         check_status_response = check_status()
+#         print(f'CHECK STATUS RESPONSE: {check_status_response}')
