@@ -114,16 +114,55 @@ def get_init_response():
     sleep(init_response['cooldown'])
     return init_response
 
-def make_wise_move(move, init_response, traversal_graph_complete):
-    move_endpoint = "https://lambda-treasure-hunt.herokuapp.com/api/adv/move/"
-    # move_endpoint = "http://127.0.0.1:8000/api/adv/move/"
-    move_headers = {"Content-Type": "application/json", "Authorization": f"Token {config('SECRET_KEY')}"}
-    # move_headers = {"Content-Type": "application/json", "Authorization": f"Token {config('TEST_KEY')}"}
-    next_room_id = traversal_graph_complete.vertices[init_response['room_id']]['exits'][move]
-    move_payload = {"direction": move, "next_room_id": str(next_room_id)}
-    move_response = json.loads(requests.post(move_endpoint, data=json.dumps(move_payload), headers=move_headers).content)
-    sleep(move_response['cooldown'])
-    return move_response
+def fly(move, init_response, traversal_graph_complete):
+    fly_endpoint = "https://lambda-treasure-hunt.herokuapp.com/api/adv/fly/"
+    # fly_endpoint = "http://127.0.0.1:8000/api/adv/fly/"
+    fly_headers = {"Content-Type": "application/json", "Authorization": f"Token {config('SECRET_KEY')}"}
+    # fly_headers = {"Content-Type": "application/json", "Authorization": f"Token {config('TEST_KEY')}"}
+    fly_payload = {"direction": move}
+    fly_response = json.loads(requests.post(fly_endpoint, data=json.dumps(fly_payload), headers=fly_headers).content)
+    print(fly_response['messages'])
+    sleep(fly_response['cooldown'])
+    return fly_response
+
+def dash(move, init_response, traversal_graph_complete):
+    dash_endpoint = "https://lambda-treasure-hunt.herokuapp.com/api/adv/dash/"
+    # dash_endpoint = "http://127.0.0.1:8000/api/adv/dash/"
+    dash_headers = {"Content-Type": "application/json", "Authorization": f"Token {config('SECRET_KEY')}"}
+    # dash_headers = {"Content-Type": "application/json", "Authorization": f"Token {config('TEST_KEY')}"}
+    move_direction = move[0]
+    starting_room = init_response['room_id']
+    next_room_ids = []
+    for i in range(len(move)):
+        next_room_id = traversal_graph_complete.vertices[starting_room]['exits'][move_direction]
+        next_room_ids.append(str(next_room_id))
+        starting_room = next_room_id
+    dash_payload = {"direction": move_direction, "num_rooms": str(len(next_room_ids)), "next_room_ids": ','.join(next_room_ids)}
+    dash_response = json.loads(requests.post(dash_endpoint, data=json.dumps(dash_payload), headers=dash_headers).content)
+    print(dash_response['messages'])
+    sleep(dash_response['cooldown'])
+    return dash_response
+
+def make_wise_move(move, init_response, check_status_response, traversal_graph_complete):
+    if ('dash' in check_status_response['abilities']) and (type(move) == list):
+        dash(move, init_response, traversal_graph_complete)
+    else:
+        next_room_id = traversal_graph_complete.vertices[init_response['room_id']]['exits'][move]
+        current_elevation = init_response['elevation']
+        next_room_elevation = traversal_graph_complete.vertices[next_room_id]['elevation']
+        elevation_change = next_room_elevation - current_elevation
+        if ('fly' in check_status_response['abilities']) and (elevation_change < 0):
+            fly(move, init_response, traversal_graph_complete)
+        else:
+            move_endpoint = "https://lambda-treasure-hunt.herokuapp.com/api/adv/move/"
+            # move_endpoint = "http://127.0.0.1:8000/api/adv/move/"
+            move_headers = {"Content-Type": "application/json", "Authorization": f"Token {config('SECRET_KEY')}"}
+            # move_headers = {"Content-Type": "application/json", "Authorization": f"Token {config('TEST_KEY')}"}
+            move_payload = {"direction": move, "next_room_id": str(next_room_id)}
+            move_response = json.loads(requests.post(move_endpoint, data=json.dumps(move_payload), headers=move_headers).content)
+            print(move_response['messages'])
+            sleep(move_response['cooldown'])
+            return move_response
 
 def examine_item(item):
     examine_endpoint = "https://lambda-treasure-hunt.herokuapp.com/api/adv/examine/"
@@ -221,6 +260,27 @@ def get_lambda_coin_balance():
     sleep(lambda_coin_balance_response['cooldown'])
     return lambda_coin_balance_response
 
+def get_dash_sequences(directions):
+    dash_sequenced_directions = []
+    dash_sequence = []
+    for i in range(1, len(directions)):
+        if directions[i] == directions[i - 1]:
+            if len(dash_sequence) == 0:
+                dash_sequence.append(directions[i - 1])
+                dash_sequence.append(directions[i])
+            else:
+                dash_sequence.append(directions[i])
+        else:
+            if len(dash_sequence) == 0:
+                dash_sequenced_directions.append(directions[i - 1])
+            else:
+                dash_sequenced_directions.append(dash_sequence)
+            dash_sequence = []
+    if len(dash_sequence) == 0:
+        dash_sequenced_directions.append(directions[-1])
+    else:
+        dash_sequenced_directions.append(dash_sequence)
+    return dash_sequenced_directions
 
 traversal_graph = Traversal_Graph_Complete()
 with open(os.path.join(dirname, 'traversal_graph_complete.txt')) as json_file:
@@ -251,8 +311,10 @@ while name != my_name:
     while gold < 1000:
         while encumbrance < 7:
             to_treasure = traversal_graph.bfs(init_response, 'items', 'small treasure')
+            if 'dash' in check_status_response['abilities']:
+                to_treasure = get_dash_sequences(to_treasure)
             for move in to_treasure:
-                make_wise_move(move, init_response, traversal_graph)
+                make_wise_move(move, init_response, check_status_response, traversal_graph)
                 counter += 1
                 print(f'{counter} moves made in {time() - start_time} seconds.')
                 init_response = get_init_response()
@@ -272,8 +334,10 @@ while name != my_name:
                 if encumbrance >= 7:
                     break
         to_shop = traversal_graph.bfs(init_response, 'title', 'Shop')
+        if 'dash' in check_status_response['abilities']:
+            to_shop = get_dash_sequences(to_shop)
         for move in to_shop:
-            make_wise_move(move, init_response, traversal_graph)
+            make_wise_move(move, init_response, check_status_response, traversal_graph)
             counter += 1
             print(f'{counter} moves made in {time() - start_time} seconds.')
             init_response = get_init_response()
@@ -289,8 +353,10 @@ while name != my_name:
                     gold = check_status_response['gold']
                     encumbrance = check_status_response['encumbrance']
     to_name_changer = traversal_graph.bfs(init_response, 'description', "change_name")
+    if 'dash' in check_status_response['abilities']:
+        to_name_changer = get_dash_sequences(to_name_changer)
     for move in to_name_changer:
-        make_wise_move(move, init_response, traversal_graph)
+        make_wise_move(move, init_response, check_status_response, traversal_graph)
         counter += 1
         print(f'{counter} moves made in {time() - start_time} seconds.')
         init_response = get_init_response()
@@ -301,77 +367,83 @@ while name != my_name:
         check_status_response = check_status()
         print(f'CHECK STATUS RESPONSE: {check_status_response}')
 
-shrines = set()
-for vertex in traversal_graph.vertices:
-    if 'shrine' in traversal_graph.vertices[vertex]['description']:
-        shrines.add(vertex)
+# shrines = set()
+# for vertex in traversal_graph.vertices:
+#     if 'shrine' in traversal_graph.vertices[vertex]['description']:
+#         shrines.add(vertex)
 
-while len(shrines) > 0:
-    to_shrine = traversal_graph.bfs(init_response, 'room_id', shrines)
-    for move in to_shrine:
-        make_wise_move(move, init_response, traversal_graph)
+# while len(shrines) > 0:
+#     to_shrine = traversal_graph.bfs(init_response, 'room_id', shrines)
+#     if 'dash' in check_status_response['abilities']:
+#         to_shrine = get_dash_sequences(to_shrine)
+#     for move in to_shrine:
+#         make_wise_move(move, init_response, check_status_response, traversal_graph)
+#         counter += 1
+#         print(f'{counter} moves made in {time() - start_time} seconds.')
+#         init_response = get_init_response()
+#         traversal_graph.vertices[init_response['room_id']]['items'] = init_response['items']
+#     if 'shrine' in init_response['description']:
+#         pray_response = pray()
+#         print(f"PRAY RESPONSE: {pray_response}")
+#         check_status_response = check_status()
+#         print(f'CHECK STATUS RESPONSE: {check_status_response}')
+#         shrines.remove(init_response['room_id'])
+
+while True:
+    to_wishing_well = traversal_graph.bfs(init_response, 'title', "Wishing Well")
+    if 'dash' in check_status_response['abilities']:
+        to_wishing_well = get_dash_sequences(to_wishing_well)
+    for move in to_wishing_well:
+        make_wise_move(move, init_response, check_status_response, traversal_graph)
         counter += 1
         print(f'{counter} moves made in {time() - start_time} seconds.')
         init_response = get_init_response()
         traversal_graph.vertices[init_response['room_id']]['items'] = init_response['items']
-    if 'shrine' in init_response['description']:
-        pray_response = pray()
-        print(f"PRAY RESPONSE: {pray_response}")
+    if init_response['title'] == 'Wishing Well':    
+        examine_response = examine_item('Wishing Well')
+        print(f'EXAMINE RESPONSE: {examine_response}')
         check_status_response = check_status()
         print(f'CHECK STATUS RESPONSE: {check_status_response}')
-        shrines.remove(init_response['room_id'])
-
-# while True:
-#     to_wishing_well = traversal_graph.bfs(init_response, 'title', "Wishing Well")
-#     for move in to_wishing_well:
-#         make_wise_move(move, init_response, traversal_graph)
-#         counter += 1
-#         print(f'{counter} moves made in {time() - start_time} seconds.')
-#         init_response = get_init_response()
-#         traversal_graph.vertices[init_response['room_id']]['items'] = init_response['items']
-#     if init_response['title'] == 'Wishing Well':    
-#         examine_response = examine_item('Wishing Well')
-#         print(f'EXAMINE RESPONSE: {examine_response}')
-#         check_status_response = check_status()
-#         print(f'CHECK STATUS RESPONSE: {check_status_response}')
-#         faint_pattern = examine_response['description'].split('...\n\n')[1]
-#         with open(os.path.join(dirname, 'faint_pattern.ls8'), 'w') as outfile:
-#             outfile.write(faint_pattern)
-#         cpu = CPU()
-#         cpu.load(os.path.join(dirname, 'faint_pattern.ls8'))
-#         f = io.StringIO()
-#         with redirect_stdout(f):
-#             cpu.run()
-#         faint_pattern = f.getvalue().replace('\n', '')
-#         print(f'FAINT PATTERN: {faint_pattern}')
-#         room_id = int(faint_pattern.replace('Mine your coin in room ', ''))
-#     to_mining_location = traversal_graph.bfs(init_response, 'room_id', room_id)
-#     for move in to_mining_location:
-#         make_wise_move(move, init_response, traversal_graph)
-#         counter += 1
-#         print(f'{counter} moves made in {time() - start_time} seconds.')
-#         init_response = get_init_response()
-#         traversal_graph.vertices[init_response['room_id']]['items'] = init_response['items']
-#     if init_response['room_id'] == room_id:
-#         last_proof_response = get_last_proof()
-#         print(f'GET LAST PROOF RESPONSE: {last_proof_response}')
-#         last_proof = last_proof_response['proof']
-#         difficulty = last_proof_response['difficulty']
-#         while True:
-#             while True:
-#                 proof = random.randint(0, 9999999999)
-#                 guess = f"{last_proof}{proof}".encode()
-#                 guess_hash = hashlib.sha256(guess).hexdigest()
-#                 if guess_hash[:difficulty] == ''.join(['0' for _ in range(difficulty)]):
-#                     break
-#             print(f'NEW PROOF: {proof}')
-#             mine_response = mine(proof)
-#             print(f'MINE RESPONSE: {mine_response}')
-#             if len(mine_response['errors']) > 0:
-#                 continue
-#             elif mine_response['messages'][0] == 'New Block Forged':
-#                 break
-#         lambda_coin_balance_response = get_lambda_coin_balance()
-#         print(f'LAMBDA COIN BALANCE RESPONSE: {lambda_coin_balance_response}')
-#         check_status_response = check_status()
-#         print(f'CHECK STATUS RESPONSE: {check_status_response}')
+        faint_pattern = examine_response['description'].split('...\n\n')[1]
+        with open(os.path.join(dirname, 'faint_pattern.ls8'), 'w') as outfile:
+            outfile.write(faint_pattern)
+        cpu = CPU()
+        cpu.load(os.path.join(dirname, 'faint_pattern.ls8'))
+        f = io.StringIO()
+        with redirect_stdout(f):
+            cpu.run()
+        faint_pattern = f.getvalue().replace('\n', '')
+        print(f'FAINT PATTERN: {faint_pattern}')
+        room_id = int(faint_pattern.replace('Mine your coin in room ', ''))
+    to_mining_location = traversal_graph.bfs(init_response, 'room_id', room_id)
+    if 'dash' in check_status_response['abilities']:
+        to_mining_location = get_dash_sequences(to_mining_location)
+    for move in to_mining_location:
+        make_wise_move(move, init_response, check_status_response, traversal_graph)
+        counter += 1
+        print(f'{counter} moves made in {time() - start_time} seconds.')
+        init_response = get_init_response()
+        traversal_graph.vertices[init_response['room_id']]['items'] = init_response['items']
+    if init_response['room_id'] == room_id:
+        last_proof_response = get_last_proof()
+        print(f'GET LAST PROOF RESPONSE: {last_proof_response}')
+        last_proof = last_proof_response['proof']
+        difficulty = last_proof_response['difficulty']
+        while True:
+            while True:
+                proof = random.randint(0, 9999999999)
+                guess = f"{last_proof}{proof}".encode()
+                guess_hash = hashlib.sha256(guess).hexdigest()
+                if guess_hash[:difficulty] == ''.join(['0' for _ in range(difficulty)]):
+                    break
+            print(f'NEW PROOF: {proof}')
+            mine_response = mine(proof)
+            print(f'MINE RESPONSE: {mine_response}')
+            if len(mine_response['errors']) > 0:
+                continue
+            elif mine_response['messages'][0] == 'New Block Forged':
+                break
+        lambda_coin_balance_response = get_lambda_coin_balance()
+        print(f'LAMBDA COIN BALANCE RESPONSE: {lambda_coin_balance_response}')
+        check_status_response = check_status()
+        print(f'CHECK STATUS RESPONSE: {check_status_response}')
