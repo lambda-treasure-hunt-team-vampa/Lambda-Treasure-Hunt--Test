@@ -80,8 +80,11 @@ def get_init_response():
     init_headers = {"Authorization": f"Token {config('SECRET_KEY')}"}
     # init_headers = {"Authorization": f"Token {config('TEST_KEY')}"}
     init_response = json.loads(requests.get(init_endpoint, headers=init_headers).content)
+
     sleep(init_response['cooldown'])
+
     return init_response
+
 def make_move(move):
     move_endpoint = "https://lambda-treasure-hunt.herokuapp.com/api/adv/move/"
     # move_endpoint = "http://127.0.0.1:8000/api/adv/move/"
@@ -89,7 +92,9 @@ def make_move(move):
     # move_headers = {"Content-Type": "application/json", "Authorization": f"Token {config('TEST_KEY')}"}
     move_payload = {"direction": move}
     move_response = json.loads(requests.post(move_endpoint, data=json.dumps(move_payload), headers=move_headers).content)
+    
     sleep(move_response['cooldown'])
+
     return move_response
 
 traversal_graph = Traversal_Graph()
@@ -98,27 +103,44 @@ traversal_graph.add_vertex(init_response)
 
 counter = 0
 start_time = time()
+
+# Build complete map
 while len(traversal_graph.vertices) < 500:
+    # Get room/exit data
     init_response = get_init_response()
     exits = init_response['exits']
-    unexplored = [option for option in exits if (
-        traversal_graph.vertices[init_response['room_id']]['exits'][option] == '?')]
+
+    # Get unexplored rooms
+    unexplored = [option for option in exits if (traversal_graph.vertices[init_response['room_id']]['exits'][option] == '?')]
+
+    # If there are unexplored rooms
     if len(unexplored) > 0:
+        # Choose a random unexplored room
         move = random.choice(unexplored)
         move_response = make_move(move)
+
         counter += 1
         post_move_room_id = move_response['room_id']
+
         if post_move_room_id not in traversal_graph.vertices:
+
+            # Add if not already there
             traversal_graph.add_vertex(move_response)
+
             print(f"{len(traversal_graph.vertices)} rooms found in {counter} moves and {time() - start_time} seconds")
+
+            # Write data to text file
             with open(os.path.join(dirname, 'traversal_graph.txt'), 'w') as outfile:
                 json.dump(traversal_graph.vertices, outfile)
         traversal_graph.add_edge(init_response, move_response, move)
+
+    # If all exits are known
     else:
         to_unexplored = traversal_graph.bfs_to_unexplored(init_response)
         for move in to_unexplored:
             make_move(move)
             counter += 1
 
+# Backup complete text file generated every time traversal fully completes
 with open(os.path.join(dirname, 'traversal_graph_complete.txt'), 'w') as outfile:
     json.dump(traversal_graph.vertices, outfile)
