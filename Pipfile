@@ -18,6 +18,7 @@ celery = "*"
 dj-database-url = "*"
 "psycopg2-binary" = "*"
 requests = "*"
+hashlib = "*"
 
 [dev-packages]
 flake8 = "*"

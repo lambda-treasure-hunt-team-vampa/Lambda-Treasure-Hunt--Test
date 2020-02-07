@@ -223,7 +223,15 @@ class Item(models.Model):
         self.save()
 
 
-
+("tiny treasure", "This is a tiny piece of treasure"),
+("small treasure", "This is a small piece of treasure"),
+("shiny treasure", "This is a shiny piece of treasure"),
+("great treasure", "This is a great pile of treasure"),
+("amazing treasure", "This is an amazing pile of treasure"),
+("spectacular treasure", "This is a spectacular pile of treasure"),
+("dazzling treasure", "This is a dazzling pile of treasure"),
+("brilliant treasure", "This is a brilliant pile of treasure"),
+("sparkling treasure" "This is a sparkling bounty of treasure")
 
 
 
